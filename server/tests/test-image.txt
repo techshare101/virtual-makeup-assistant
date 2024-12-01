@@ -1,0 +1,10 @@
+To test the Vision API, you'll need to:
+
+1. Save a test image (like a selfie or face photo) as 'test-image.jpg' in the server/tests directory
+2. Make sure your google-credentials.json file is in the project root
+3. Run the test using: npm run test-vision
+
+The test will verify:
+- If the credentials are loaded correctly
+- If the Vision API can be accessed
+- If face detection works properly

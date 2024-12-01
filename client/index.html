@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Virtual Makeup Assistant</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-8">
+        <!-- User Registration/Login Section -->
+        <div id="userSection" class="mb-8 p-6 bg-white rounded-lg shadow-md">
+            <h2 class="text-2xl font-bold mb-4">User Account</h2>
+            
+            <!-- Auth Mode Selector -->
+            <div class="flex mb-4 space-x-4">
+                <button onclick="switchMode('login')" id="loginModeBtn" class="px-4 py-2 rounded font-semibold">Login</button>
+                <button onclick="switchMode('register')" id="registerModeBtn" class="px-4 py-2 rounded font-semibold">Register</button>
+            </div>
+
+            <!-- Login Form -->
+            <div id="loginForm" class="space-y-4">
+                <input type="email" id="loginEmail" placeholder="Your Email" class="w-full p-2 border rounded" required>
+                <button onclick="loginUser()" class="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Login</button>
+            </div>
+
+            <!-- Registration Form -->
+            <div id="registerForm" class="space-y-4 hidden">
+                <input type="text" id="registerName" placeholder="Your Name" class="w-full p-2 border rounded" required>
+                <input type="email" id="registerEmail" placeholder="Your Email" class="w-full p-2 border rounded" required>
+                <button onclick="registerUser()" class="w-full bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Register</button>
+            </div>
+
+            <div id="errorMessage" class="text-red-500 hidden mt-4"></div>
+            
+            <!-- User Info (shown after login) -->
+            <div id="userInfo" class="hidden">
+                <p class="mb-2">Welcome, <span id="userName"></span>!</p>
+                <button onclick="logout()" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">Logout</button>
+            </div>
+        </div>
+
+        <!-- Makeup Consultation Section -->
+        <div class="grid md:grid-cols-2 gap-8">
+            <!-- Input Section -->
+            <div class="space-y-6">
+                <div class="p-6 bg-white rounded-lg shadow-md">
+                    <h2 class="text-2xl font-bold mb-4">Get Beauty Advice</h2>
+                    
+                    <!-- File Upload -->
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Upload Your Photo</label>
+                        <input type="file" 
+                               id="imageInput" 
+                               accept="image/*" 
+                               class="block w-full text-sm text-gray-500
+                                      file:mr-4 file:py-2 file:px-4
+                                      file:rounded-full file:border-0
+                                      file:text-sm file:font-semibold
+                                      file:bg-blue-50 file:text-blue-700
+                                      hover:file:bg-blue-100">
+                    </div>
+
+                    <!-- Preview -->
+                    <div class="mb-4">
+                        <img id="imagePreview" class="hidden max-w-full h-auto rounded-lg">
+                    </div>
+
+                    <!-- Prompt Input -->
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">What would you like to know?</label>
+                        <textarea id="promptInput" 
+                                  class="w-full p-2 border rounded-lg"
+                                  rows="3"
+                                  placeholder="E.g., What makeup would suit me?"></textarea>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button onclick="getBeautyAdvice()" 
+                            class="w-full bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600">
+                        Get Beauty Advice
+                    </button>
+                </div>
+
+                <!-- History Section -->
+                <div id="historySection" class="p-6 bg-white rounded-lg shadow-md">
+                    <h2 class="text-2xl font-bold mb-4">Your Consultation History</h2>
+                    <div id="consultationHistory" class="space-y-4">
+                        <!-- History items will be inserted here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Response Section -->
+            <div class="p-6 bg-white rounded-lg shadow-md">
+                <h2 class="text-2xl font-bold mb-4">Beauty Advice</h2>
+                <div id="beautyAdviceError" class="hidden mb-4 p-4 bg-red-100 text-red-700 rounded-lg"></div>
+                
+                <!-- Vision API Analysis -->
+                <div id="visionAnalysis" class="hidden mb-4">
+                    <h3 class="text-lg font-semibold mb-2">Image Analysis:</h3>
+                    <div class="space-y-2">
+                        <div id="faceAnalysis" class="p-3 bg-blue-50 rounded-lg"></div>
+                        <div id="labelAnalysis" class="p-3 bg-green-50 rounded-lg"></div>
+                    </div>
+                </div>
+
+                <div id="beautyAdviceResult" class="hidden mb-4">
+                    <h3 class="text-lg font-semibold mb-2">Beauty Advice:</h3>
+                    <div id="adviceText" class="p-4 bg-gray-50 rounded-lg"></div>
+                </div>
+                <div id="responseSection" class="prose">
+                    <!-- Response will be inserted here -->
+                </div>
+                <div id="errorSection" class="hidden text-red-500 mt-4">
+                    <!-- Error messages will be inserted here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentUser = JSON.parse(localStorage.getItem('currentUser')) || null;
+        
+        // Check if user is already logged in
+        if (currentUser) {
+            updateUserInterface();
+            loadConsultationHistory();
+        }
+
+        // Switch between login and register modes
+        function switchMode(mode) {
+            const loginForm = document.getElementById('loginForm');
+            const registerForm = document.getElementById('registerForm');
+            const loginBtn = document.getElementById('loginModeBtn');
+            const registerBtn = document.getElementById('registerModeBtn');
+
+            if (mode === 'login') {
+                loginForm.classList.remove('hidden');
+                registerForm.classList.add('hidden');
+                loginBtn.classList.add('bg-blue-100');
+                registerBtn.classList.remove('bg-blue-100');
+            } else {
+                loginForm.classList.add('hidden');
+                registerForm.classList.remove('hidden');
+                loginBtn.classList.remove('bg-blue-100');
+                registerBtn.classList.add('bg-blue-100');
+            }
+            
+            // Clear error message when switching modes
+            document.getElementById('errorMessage').classList.add('hidden');
+        }
+
+        // Initialize login mode
+        switchMode('login');
+
+        // Login function
+        async function loginUser() {
+            const email = document.getElementById('loginEmail').value.trim();
+            const errorDiv = document.getElementById('errorMessage');
+            
+            // Reset error message
+            errorDiv.textContent = '';
+            errorDiv.classList.add('hidden');
+
+            if (!email) {
+                showError('Please enter your email');
+                return;
+            }
+
+            if (!isValidEmail(email)) {
+                showError('Please enter a valid email address');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email }),
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    currentUser = data;
+                    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                    updateUserInterface();
+                    loadConsultationHistory();
+                } else {
+                    showError(data.error || 'User not found. Please register first.');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showError('Network error. Please try again later.');
+            }
+        }
+
+        // Register function
+        async function registerUser() {
+            const name = document.getElementById('registerName').value.trim();
+            const email = document.getElementById('registerEmail').value.trim();
+            const errorDiv = document.getElementById('errorMessage');
+            
+            // Reset error message
+            errorDiv.textContent = '';
+            errorDiv.classList.add('hidden');
+
+            if (!name || !email) {
+                showError('Please enter both name and email');
+                return;
+            }
+
+            if (!isValidEmail(email)) {
+                showError('Please enter a valid email address');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ name, email }),
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    currentUser = data;
+                    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                    updateUserInterface();
+                    loadConsultationHistory();
+                } else {
+                    showError(data.error || 'Failed to register user');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showError('Network error. Please try again later.');
+            }
+        }
+
+        // User Registration/Login
+        async function registerUserOld() {
+            const nameInput = document.getElementById('name');
+            const emailInput = document.getElementById('email');
+            const errorDiv = document.getElementById('errorMessage');
+            
+            // Reset error message
+            errorDiv.textContent = '';
+            errorDiv.classList.add('hidden');
+
+            const name = nameInput.value.trim();
+            const email = emailInput.value.trim();
+
+            if (!name || !email) {
+                showError('Please enter both name and email');
+                return;
+            }
+
+            if (!isValidEmail(email)) {
+                showError('Please enter a valid email address');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ name, email }),
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    currentUser = data;
+                    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                    updateUserInterface();
+                    loadConsultationHistory();
+                } else {
+                    showError(data.error || 'Failed to register user');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showError('Network error. Please try again later.');
+            }
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.classList.remove('hidden');
+        }
+
+        function isValidEmail(email) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return emailRegex.test(email);
+        }
+
+        // Update UI after user login
+        function updateUserInterface() {
+            if (currentUser) {
+                document.getElementById('loginForm').classList.add('hidden');
+                document.getElementById('registerForm').classList.add('hidden');
+                document.getElementById('userInfo').classList.remove('hidden');
+                document.getElementById('userName').textContent = currentUser.name;
+                document.getElementById('historySection').classList.remove('hidden');
+            }
+        }
+
+        // Load consultation history
+        async function loadConsultationHistory() {
+            if (!currentUser) return;
+
+            try {
+                const response = await fetch(`/api/consultations/${currentUser.id}`);
+                const consultations = await response.json();
+
+                const historyContainer = document.getElementById('consultationHistory');
+                historyContainer.innerHTML = '';
+
+                consultations.forEach(consultation => {
+                    const historyItem = document.createElement('div');
+                    historyItem.className = 'p-4 border rounded-lg';
+                    historyItem.innerHTML = `
+                        <p class="font-bold">Date: ${new Date(consultation.createdAt).toLocaleDateString()}</p>
+                        <p>Prompt: ${consultation.prompt}</p>
+                        <p>Advice: ${consultation.advice}</p>
+                        <img src="${consultation.imageUrl}" class="mt-2 max-w-full h-auto rounded">
+                    `;
+                    historyContainer.appendChild(historyItem);
+                });
+            } catch (error) {
+                console.error('Error loading history:', error);
+            }
+        }
+
+        // Image preview functionality
+        document.getElementById('imageInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const preview = document.getElementById('imagePreview');
+                    preview.src = e.target.result;
+                    preview.classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Get beauty advice
+        async function getBeautyAdvice() {
+            if (!currentUser) {
+                showBeautyAdviceError('Please register or log in first');
+                return;
+            }
+
+            const imageInput = document.getElementById('imageInput');
+            const promptInput = document.getElementById('promptInput');
+            const responseSection = document.getElementById('responseSection');
+            const errorSection = document.getElementById('errorSection');
+            const beautyAdviceError = document.getElementById('beautyAdviceError');
+            const beautyAdviceResult = document.getElementById('beautyAdviceResult');
+            const adviceText = document.getElementById('adviceText');
+
+            if (!imageInput.files[0]) {
+                showBeautyAdviceError('Please select an image first');
+                return;
+            }
+
+            const file = imageInput.files[0];
+
+            // Validate file type
+            if (!file.type.startsWith('image/')) {
+                showBeautyAdviceError('Please select a valid image file');
+                return;
+            }
+
+            // Validate file size (max 20MB)
+            if (file.size > 20 * 1024 * 1024) {
+                showBeautyAdviceError('Image size too large. Please use an image under 20MB.');
+                return;
+            }
+
+            try {
+                // Reset UI
+                responseSection.innerHTML = 'Getting beauty advice...';
+                errorSection.classList.add('hidden');
+                beautyAdviceError.classList.add('hidden');
+                beautyAdviceResult.classList.add('hidden');
+
+                // Convert image to base64
+                const imageUrl = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        if (typeof reader.result === 'string') {
+                            resolve(reader.result);
+                        } else {
+                            reject(new Error('Failed to read image file'));
+                        }
+                    };
+                    reader.onerror = () => reject(new Error('Failed to read image file'));
+                    reader.readAsDataURL(file);
+                });
+
+                const response = await fetch('/api/beauty-advice', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        userId: currentUser.id,
+                        imageUrl: imageUrl,
+                        prompt: promptInput.value
+                    }),
+                });
+
+                const data = await response.json();
+                
+                // Clear the loading message
+                responseSection.innerHTML = '';
+
+                if (response.ok) {
+                    // Display Vision API analysis
+                    if (data.analysis) {
+                        const visionAnalysis = document.getElementById('visionAnalysis');
+                        const faceAnalysis = document.getElementById('faceAnalysis');
+                        const labelAnalysis = document.getElementById('labelAnalysis');
+                        
+                        if (data.analysis.error) {
+                            // Show error but continue with beauty advice
+                            visionAnalysis.classList.remove('hidden');
+                            faceAnalysis.innerHTML = '<strong>Note:</strong><br>Additional image analysis is currently unavailable';
+                            labelAnalysis.classList.add('hidden');
+                        } else {
+                            // Display face analysis
+                            if (data.analysis.faces && data.analysis.faces.length > 0) {
+                                const faceDetails = data.analysis.faces.map(face => {
+                                    const emotions = [];
+                                    if (face.joyLikelihood === 'VERY_LIKELY') emotions.push('Joy');
+                                    if (face.sorrowLikelihood === 'VERY_LIKELY') emotions.push('Sorrow');
+                                    if (face.angerLikelihood === 'VERY_LIKELY') emotions.push('Anger');
+                                    if (face.surpriseLikelihood === 'VERY_LIKELY') emotions.push('Surprise');
+                                    return `Face detected with ${emotions.length ? emotions.join(', ') + ' expression' : 'neutral expression'}`;
+                                }).join('<br>');
+                                faceAnalysis.innerHTML = `<strong>Face Analysis:</strong><br>${faceDetails}`;
+                            } else {
+                                faceAnalysis.innerHTML = '<strong>Face Analysis:</strong><br>No faces detected';
+                            }
+                            
+                            // Display label analysis
+                            labelAnalysis.classList.remove('hidden');
+                            if (data.analysis.labels && data.analysis.labels.length > 0) {
+                                const labels = data.analysis.labels
+                                    .filter(label => label.score > 0.7)
+                                    .map(label => label.description)
+                                    .join(', ');
+                                labelAnalysis.innerHTML = `<strong>Detected Features:</strong><br>${labels}`;
+                            } else {
+                                labelAnalysis.innerHTML = '<strong>Detected Features:</strong><br>No significant features detected';
+                            }
+                            
+                            visionAnalysis.classList.remove('hidden');
+                        }
+                    }
+
+                    adviceText.textContent = data.advice;
+                    beautyAdviceResult.classList.remove('hidden');
+                    loadConsultationHistory(); // Refresh history
+                } else {
+                    if (data.isRateLimit) {
+                        showBeautyAdviceError('We\'ve reached our limit for AI analysis. Please try again in about an hour.');
+                    } else if (data.isOverloaded) {
+                        showBeautyAdviceError('The AI service is currently overloaded. Please try again in a few minutes.');
+                    } else if (data.details) {
+                        showBeautyAdviceError(`${data.error}\nDetails: ${data.details}`);
+                    } else {
+                        showBeautyAdviceError(data.error || 'Failed to get beauty advice');
+                    }
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                responseSection.innerHTML = '';
+                showBeautyAdviceError('Network error. Please try again later.');
+            }
+        }
+
+        function showBeautyAdviceError(message) {
+            const beautyAdviceError = document.getElementById('beautyAdviceError');
+            const errorSection = document.getElementById('errorSection');
+            
+            beautyAdviceError.textContent = message;
+            beautyAdviceError.classList.remove('hidden');
+            errorSection.classList.add('hidden');
+        }
+
+        // Logout function
+        function logout() {
+            currentUser = null;
+            localStorage.removeItem('currentUser');
+            document.getElementById('loginForm').classList.remove('hidden');
+            document.getElementById('registerForm').classList.add('hidden');
+            document.getElementById('userInfo').classList.add('hidden');
+            document.getElementById('historySection').classList.add('hidden');
+            document.getElementById('loginEmail').value = '';
+            document.getElementById('registerName').value = '';
+            document.getElementById('registerEmail').value = '';
+        }
+
+        // Hide history section initially
+        document.getElementById('historySection').classList.add('hidden');
+    </script>
+</body>
+</html>
