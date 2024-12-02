@@ -22,5 +22,6 @@
     "transpileOnly": true
   },
   "include": ["server/**/*", "client/**/*"],
-  "exclude": ["node_modules", "build", "dist", "**/*.test.ts"]
+  "exclude": ["node_modules", "build", "dist", "**/*.test.ts"],
+  "references": [{ "path": "./tsconfig.node.json" }]
 }
